@@ -1,0 +1,469 @@
+import customtkinter as ctk
+from tkinter import messagebox
+import json
+import os
+from hashlib import sha256
+from datetime import datetime
+import threading
+import time
+
+# App configuration
+ctk.set_appearance_mode("System")
+ctk.set_default_color_theme("blue")
+
+# File paths
+USER_DATA_FILE = "users.json"
+HABIT_DATA_DIR = "habit_data"
+os.makedirs(HABIT_DATA_DIR, exist_ok=True)
+
+
+# Utility functions
+def hash_password(password):
+    return sha256(password.encode()).hexdigest()
+
+
+def load_json(filepath, default=None):
+    default = {} if default is None else default
+    if os.path.exists(filepath):
+        with open(filepath, "r") as f:
+            return json.load(f)
+    return default
+
+
+def save_json(filepath, data):
+    os.makedirs(os.path.dirname(filepath) or '.', exist_ok=True)
+    with open(filepath, "w") as f:
+        json.dump(data, f, indent=2)
+
+
+def format_time(seconds):
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{int(hours):02}:{int(minutes):02}:{int(seconds):02}"
+
+
+class HabitApp(ctk.CTk):
+    def __init__(self):
+        super().__init__()
+
+        # App setup
+        self.title("Habit Tracker")
+        self.geometry("550x600")
+
+        # Initialize variables
+        self.username = None
+        self.habit_data = {"habits": {}}
+        self.timer_running = False
+        self.timer_thread = None
+        self.remaining_time = 0
+        self.habit_for_timer = None
+        self.habit_options = []
+
+        # Dictionary to store time inputs
+        self.time_inputs = {}
+
+        # Initialize UI elements to avoid "defined outside __init__" warnings
+        self.tabview = None
+        self.selected_habit = None
+        self.history_habit = None
+
+        # Start with login screen
+        self.show_login_screen()
+
+    def clear_screen(self):
+        for widget in self.winfo_children():
+            widget.destroy()
+
+    # AUTH SCREENS
+    def show_login_screen(self):
+        self.clear_screen()
+        self.geometry("400x300")
+
+        frame = ctk.CTkFrame(self)
+        frame.pack(padx=20, pady=20, fill="both", expand=True)
+
+        ctk.CTkLabel(frame, text="Habit Tracker", font=("Arial", 24)).pack(pady=20)
+
+        # Login fields
+        ctk.CTkLabel(frame, text="Username:").pack(anchor="w", padx=20)
+        self.user_entry = ctk.CTkEntry(frame, width=300)
+        self.user_entry.pack(padx=20, pady=(0, 10), fill="x")
+
+        ctk.CTkLabel(frame, text="Password:").pack(anchor="w", padx=20)
+        self.pass_entry = ctk.CTkEntry(frame, width=300, show="•")
+        self.pass_entry.pack(padx=20, pady=(0, 20), fill="x")
+
+        # Buttons
+        button_frame = ctk.CTkFrame(frame)
+        button_frame.pack(padx=20, fill="x")
+
+        ctk.CTkButton(button_frame, text="Login", command=self.login).pack(
+            side="left", padx=10, pady=10, fill="x", expand=True)
+        ctk.CTkButton(button_frame, text="Register", command=self.register).pack(
+            side="left", padx=10, pady=10, fill="x", expand=True)
+
+        # Key bindings
+        self.user_entry.bind("<Return>", lambda e: self.pass_entry.focus())
+        self.pass_entry.bind("<Return>", lambda e: self.login())
+
+    def login(self, *args):
+        users = load_json(USER_DATA_FILE)
+        user = self.user_entry.get()
+        pw = hash_password(self.pass_entry.get())
+
+        if not user:
+            messagebox.showerror("Error", "Please enter a username")
+            return
+
+        if user in users and users[user] == pw:
+            self.username = user
+            self.habit_data = load_json(f"{HABIT_DATA_DIR}/{user}.json", {"habits": {}})
+            self.show_main_screen()
+        else:
+            messagebox.showerror("Error", "Invalid credentials")
+
+    def register(self, *args):
+        users = load_json(USER_DATA_FILE)
+        user = self.user_entry.get()
+        password = self.pass_entry.get()
+
+        if not user or not password:
+            messagebox.showerror("Error", "Username and password required")
+            return
+
+        if user in users:
+            messagebox.showwarning("Warning", "User already exists")
+        else:
+            users[user] = hash_password(password)
+            save_json(USER_DATA_FILE, users)
+            save_json(f"{HABIT_DATA_DIR}/{user}.json", {"habits": {}})
+            messagebox.showinfo("Success", "Registered successfully!")
+            self.login()
+
+    # MAIN UI
+    def show_main_screen(self):
+        self.clear_screen()
+        self.geometry("550x600")
+
+        # Create tabbed interface
+        self.tabview = ctk.CTkTabview(self)
+        self.tabview.pack(padx=20, pady=20, fill="both", expand=True)
+
+        # Add tabs
+        tabs = ["Habits", "Timer", "History"]
+        for tab in tabs:
+            self.tabview.add(tab)
+
+        # Set up content for each tab
+        self.setup_habits_tab()
+        self.setup_timer_tab()
+        self.setup_history_tab()
+
+        # Logout button
+        ctk.CTkButton(self, text="Logout", command=self.logout, width=100).place(
+            relx=0.9, rely=0.05, anchor="ne")
+
+    # HABITS TAB
+    def setup_habits_tab(self):
+        tab = self.tabview.tab("Habits")
+
+        ctk.CTkLabel(tab, text=f"Welcome, {self.username}!", font=("Arial", 16)).pack(pady=(0, 20))
+        ctk.CTkButton(tab, text="Add New Habit", command=self.add_habit).pack(pady=(0, 20))
+
+        # Scrollable list of habits
+        self.habit_scroll = ctk.CTkScrollableFrame(tab, width=500, height=350)
+        self.habit_scroll.pack(fill="both", expand=True)
+
+        self.update_habit_list()
+
+    def update_habit_list(self):
+        # Clear current display
+        for widget in self.habit_scroll.winfo_children():
+            widget.destroy()
+
+        # Show message if no habits
+        if not self.habit_data["habits"]:
+            ctk.CTkLabel(self.habit_scroll, text="No habits added yet").pack(pady=20)
+            self.habit_options = []
+            self.update_dropdowns()
+            return
+
+        # Update habit options
+        self.habit_options = list(self.habit_data["habits"].keys())
+
+        # Display each habit
+        for habit, info in self.habit_data["habits"].items():
+            frame = ctk.CTkFrame(self.habit_scroll)
+            frame.pack(fill="x", padx=10, pady=5)
+
+            # Habit info section
+            info_frame = ctk.CTkFrame(frame)
+            info_frame.pack(side="left", fill="x", expand=True, padx=5, pady=5)
+
+            ctk.CTkLabel(info_frame, text=habit, font=("Arial", 14, "bold")).pack(anchor="w")
+            ctk.CTkLabel(info_frame, text=f"Completed {info['done']} of {info.get('goal', '?')} times").pack(anchor="w")
+
+            # Progress bar
+            progress = min(info["done"] / max(info.get("goal", 1), 1), 1.0)  # Prevent division by zero
+            progress_bar = ctk.CTkProgressBar(info_frame, width=200)
+            progress_bar.set(progress)
+            progress_bar.pack(pady=5)
+
+            # Buttons
+            btn_frame = ctk.CTkFrame(frame)
+            btn_frame.pack(side="right", padx=5, pady=5)
+
+            ctk.CTkButton(btn_frame, text="Complete", width=80,
+                          command=lambda h=habit: self.mark_done(h)).pack(side="left", padx=5)
+
+            ctk.CTkButton(btn_frame, text="Delete", width=80, fg_color="red", hover_color="dark red",
+                          command=lambda h=habit: self.delete_habit(h)).pack(side="left", padx=5)
+
+        self.update_dropdowns()
+
+    def add_habit(self):
+        dialog = ctk.CTkInputDialog(text="Enter habit name:", title="New Habit")
+        habit = dialog.get_input()
+
+        if not habit:
+            return
+
+        if habit in self.habit_data["habits"]:
+            messagebox.showwarning("Warning", "This habit already exists")
+            return
+
+        goal_dialog = ctk.CTkInputDialog(text="Set goal (number of completions):", title="Habit Goal")
+        goal_input = goal_dialog.get_input()
+
+        if not goal_input:
+            return
+
+        try:
+            goal = int(goal_input)
+            if goal <= 0:
+                raise ValueError
+        except ValueError:
+            messagebox.showerror("Error", "Invalid goal. Please enter a positive number.")
+            return
+
+        self.habit_data["habits"][habit] = {"done": 0, "goal": goal, "history": []}
+        self.save_habits()
+        self.update_habit_list()
+
+    def delete_habit(self, habit):
+        if messagebox.askyesno("Confirm", f"Delete habit '{habit}'?") and habit in self.habit_data["habits"]:
+            del self.habit_data["habits"][habit]
+            self.save_habits()
+            self.update_habit_list()
+
+    def mark_done(self, habit):
+        if habit in self.habit_data["habits"]:
+            self.habit_data["habits"][habit]["done"] += 1
+            self.habit_data["habits"][habit]["history"].append(datetime.now().isoformat())
+            self.save_habits()
+            self.update_habit_list()
+
+            if hasattr(self, 'history_habit') and self.history_habit and self.history_habit.get() == habit:
+                self.update_history_view(habit)
+
+            messagebox.showinfo("Success", f"'{habit}' marked as done!")
+
+    def save_habits(self):
+        save_json(f"{HABIT_DATA_DIR}/{self.username}.json", self.habit_data)
+
+    # TIMER TAB
+    def setup_timer_tab(self):
+        tab = self.tabview.tab("Timer")
+
+        ctk.CTkLabel(tab, text="Habit Timer", font=("Arial", 16)).pack(pady=(0, 20))
+
+        # Habit selection
+        ctk.CTkLabel(tab, text="Select Habit:").pack(anchor="w", padx=20)
+        self.selected_habit = ctk.StringVar(value=self.habit_options[0] if self.habit_options else "")
+        self.habit_dropdown = ctk.CTkOptionMenu(tab, values=self.habit_options or [""], variable=self.selected_habit)
+        self.habit_dropdown.pack(padx=20, pady=(0, 20), fill="x")
+
+        # Time inputs
+        time_frame = ctk.CTkFrame(tab)
+        time_frame.pack(padx=20, pady=10, fill="x")
+
+        # Create time fields using dictionary for easier access
+        time_defaults = {"hours": "0", "minutes": "25", "seconds": "0"}
+
+        for field, default in time_defaults.items():
+            field_frame = ctk.CTkFrame(time_frame)
+            field_frame.pack(side="left", fill="x", expand=True, padx=5)
+
+            ctk.CTkLabel(field_frame, text=field.capitalize()).pack()
+            entry = ctk.CTkEntry(field_frame, width=60, justify="center")
+            entry.pack(pady=5)
+            entry.insert(0, default)
+            self.time_inputs[field] = entry
+
+        # Timer display
+        self.timer_display = ctk.CTkLabel(tab, text="00:00:00", font=("Arial", 36))
+        self.timer_display.pack(pady=20)
+
+        # Control buttons
+        control_frame = ctk.CTkFrame(tab)
+        control_frame.pack(padx=20, pady=10, fill="x")
+
+        self.start_btn = ctk.CTkButton(control_frame, text="Start Timer", command=self.start_timer)
+        self.start_btn.pack(side="left", padx=10, fill="x", expand=True)
+
+        self.stop_btn = ctk.CTkButton(control_frame, text="Stop Timer", command=self.stop_timer, state="disabled")
+        self.stop_btn.pack(side="left", padx=10, fill="x", expand=True)
+
+    def start_timer(self):
+        try:
+            # Get time values
+            hours = int(self.time_inputs.get("hours").get() or 0) if "hours" in self.time_inputs else 0
+            minutes = int(self.time_inputs.get("minutes").get() or 0) if "minutes" in self.time_inputs else 0
+            seconds = int(self.time_inputs.get("seconds").get() or 0) if "seconds" in self.time_inputs else 0
+            total_seconds = hours * 3600 + minutes * 60 + seconds
+
+            # Validate input
+            if total_seconds <= 0:
+                messagebox.showerror("Error", "Please enter a valid time")
+                return
+
+            self.habit_for_timer = self.selected_habit.get() if hasattr(self, "selected_habit") else None
+            if not self.habit_for_timer or self.habit_for_timer not in self.habit_data["habits"]:
+                messagebox.showerror("Error", "Please select a valid habit")
+                return
+
+            # Update UI states
+            if hasattr(self, "start_btn") and self.start_btn:
+                self.start_btn.configure(state="disabled")
+
+            if hasattr(self, "stop_btn") and self.stop_btn:
+                self.stop_btn.configure(state="normal")
+
+            self.timer_running = True
+            self.remaining_time = total_seconds
+
+            # Start timer thread
+            self.timer_thread = threading.Thread(target=self.run_timer)
+            self.timer_thread.daemon = True
+            self.timer_thread.start()
+
+        except ValueError:
+            messagebox.showerror("Error", "Please enter valid numbers")
+
+    def run_timer(self):
+        try:
+            while self.timer_running and self.remaining_time > 0:
+                self.after(0, self.update_timer_display)
+                time.sleep(1)
+                self.remaining_time -= 1
+
+            if self.timer_running and self.remaining_time <= 0:
+                self.after(0, self.timer_complete)
+        except Exception as e:
+            print(f"Timer error: {e}")  # Safe error handling for background thread
+
+    def update_timer_display(self):
+        if hasattr(self, "timer_display") and self.timer_display:
+            self.timer_display.configure(text=format_time(self.remaining_time))
+
+    def stop_timer(self):
+        self.timer_running = False
+
+        if hasattr(self, "start_btn") and self.start_btn:
+            self.start_btn.configure(state="normal")
+
+        if hasattr(self, "stop_btn") and self.stop_btn:
+            self.stop_btn.configure(state="disabled")
+
+        if hasattr(self, "timer_display") and self.timer_display:
+            self.timer_display.configure(text="00:00:00")
+
+        self.habit_for_timer = None
+
+    def timer_complete(self):
+        self.timer_running = False
+
+        if hasattr(self, "start_btn") and self.start_btn:
+            self.start_btn.configure(state="normal")
+
+        if hasattr(self, "stop_btn") and self.stop_btn:
+            self.stop_btn.configure(state="disabled")
+
+        if self.habit_for_timer and self.habit_for_timer in self.habit_data["habits"]:
+            self.mark_done(self.habit_for_timer)
+            messagebox.showinfo("Timer Complete", f"Time's up! '{self.habit_for_timer}' marked as done!")
+        else:
+            messagebox.showinfo("Timer Complete", "Time's up!")
+
+    # HISTORY TAB
+    def setup_history_tab(self):
+        tab = self.tabview.tab("History")
+
+        ctk.CTkLabel(tab, text="Habit History", font=("Arial", 16)).pack(pady=(0, 10))
+
+        # Habit selection dropdown
+        ctk.CTkLabel(tab, text="Select Habit:").pack(padx=20, anchor="w")
+        self.history_habit = ctk.StringVar(value=self.habit_options[0] if self.habit_options else "")
+        self.history_dropdown = ctk.CTkOptionMenu(
+            tab, values=self.habit_options or [""], variable=self.history_habit,
+            command=self.update_history_view
+        )
+        self.history_dropdown.pack(padx=20, pady=(0, 10), fill="x")
+
+        # History text display
+        self.history_display = ctk.CTkTextbox(tab, width=480, height=400)
+        self.history_display.pack(padx=20, pady=(10, 20), fill="both", expand=True)
+        self.history_display.configure(state="disabled")  # Read-only
+
+        if self.habit_options:
+            self.update_history_view(self.habit_options[0])
+
+    def update_history_view(self, habit):
+        if not hasattr(self, "history_display") or not self.history_display:
+            return
+
+        self.history_display.configure(state="normal")
+        self.history_display.delete("1.0", "end")
+
+        if habit and habit in self.habit_data["habits"]:
+            history = self.habit_data["habits"][habit]["history"]
+            if not history:
+                self.history_display.insert("end", "No history available.")
+            else:
+                for entry in history:
+                    try:
+                        dt = datetime.fromisoformat(entry)
+                        self.history_display.insert("end", f"{dt.strftime('%b %d, %Y %I:%M %p')}\n")
+                    except ValueError:
+                        # Handle potential invalid date format
+                        self.history_display.insert("end", f"Invalid date: {entry}\n")
+        else:
+            self.history_display.insert("end", "Habit not found or no habit selected.")
+
+        self.history_display.configure(state="disabled")
+
+    def update_dropdowns(self):
+        if hasattr(self, "habit_dropdown") and self.habit_dropdown:
+            self.habit_dropdown.configure(values=self.habit_options or [""])
+            if self.habit_options:
+                self.selected_habit.set(self.habit_options[0])
+            else:
+                self.selected_habit.set("")
+
+        if hasattr(self, "history_dropdown") and self.history_dropdown:
+            self.history_dropdown.configure(values=self.habit_options or [""])
+            if self.habit_options:
+                self.history_habit.set(self.habit_options[0])
+            else:
+                self.history_habit.set("")
+
+    def logout(self):
+        self.username = None
+        self.habit_data = {"habits": {}}
+        self.timer_running = False
+        self.show_login_screen()
+
+
+# Start the application
+app = HabitApp()
+app.mainloop()
