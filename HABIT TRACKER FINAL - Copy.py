@@ -382,7 +382,7 @@ def show_tracker():
             habit_entry.delete(0, "end")
 
             # Update all selectors and displays that show habits
-            update_habit_selector()  # Update habit selector for timer
+            update_habit_filter()  # Update habit selector for timer
             update_timer_habit_selector()  # Update timer habit dropdown
             update_habit_filter()  # Update history filter
             update_stats()  # Update stats display
@@ -438,6 +438,11 @@ def show_tracker():
                     habit_data[habit_name]["progress"] = 100
                 save_data()
                 update_stats()  # Update stats when habit is checked/unchecked
+                # Update all selectors and displays that show habits
+                update_habit_selector()  # Update habit selector for timer
+                update_timer_habit_selector()  # Update timer habit dropdown
+                update_habit_filter()  # Update history filter
+                update_stats()  # Update stats display
 
             chk_var.trace_add("write", toggle_habit_check)
 
@@ -462,6 +467,11 @@ def show_tracker():
                 })
                 save_data()
                 draw_habits()
+                update_stats()  # Update stats display
+                # Update all selectors and displays that show habits
+                update_habit_selector()  # Update habit selector for timer
+                update_timer_habit_selector()  # Update timer habit dropdown
+                update_habit_filter()  # Update history filter
                 update_stats()  # Update stats display
 
             def delete_habit(habit_name=name):
@@ -519,15 +529,13 @@ def show_tracker():
                                     hover_color="#aa5555", font=("Arial", 12))
             del_btn.pack(side="left", padx=5)
 
+
         scheduler_frame = content_frames["scheduler"]
 
         scheduler_top_frame = ctk.CTkFrame(scheduler_frame, fg_color=HIGHLIGHT_COLOR, corner_radius=10,
                                            height=380)  # Increased height
         scheduler_top_frame.pack(fill="x", pady=(0, 15))
         scheduler_top_frame.pack_propagate(False)  # Fix the height
-
-        scheduler_header = ctk.CTkLabel(scheduler_top_frame, text="Schedule a Habit", font=("Arial", 16, "bold"))
-        scheduler_header.pack(pady=(15, 10), padx=15, anchor="w")
 
         # Scheduler form
         form_frame = ctk.CTkFrame(scheduler_top_frame, fg_color="transparent")
@@ -570,6 +578,12 @@ def show_tracker():
         year_entry = ctk.CTkEntry(date_frame, width=60, placeholder_text="YYYY")
         year_entry.pack(side="left", padx=(5, 5))
 
+        update_habit_selector()
+        # Update all selectors and displays that show habits
+        update_habit_selector()  # Update habit selector for timer
+        update_timer_habit_selector()  # Update timer habit dropdown
+        update_habit_filter()  # Update history filter
+        update_stats()  # Update stats display
         # Calendar popup button
         def open_calendar():
             cal_window = ctk.CTkToplevel(scheduler_frame)
@@ -711,6 +725,12 @@ def show_tracker():
 
                 save_data()
                 draw_schedules()
+                habit_entry.delete(0, "end")
+
+                update_habit_selector()  # Update habit selector for timer
+                update_timer_habit_selector()  # Update timer habit dropdown
+                update_habit_filter()  # Update history filter
+                update_stats()  # Update stats display
 
                 # Start a reminder thread for this schedule if it's in the future
                 start_reminder_thread(schedule_key, schedule_time, reminder_time if reminder_var.get() else None)
@@ -729,11 +749,11 @@ def show_tracker():
         scheduler_bottom_frame.pack(fill="both", expand=True)
 
         schedules_header = ctk.CTkLabel(scheduler_bottom_frame, text="Upcoming Schedules", font=("Arial", 18, "bold"))
-        schedules_header.pack(pady=(15, 15), padx=25, anchor="w")
+        schedules_header.pack(pady=(35, 35), padx=35, anchor="w")
 
         # Scrollable frame for schedules
         schedules_container = ctk.CTkScrollableFrame(scheduler_bottom_frame, fg_color="transparent")
-        schedules_container.pack(fill="both", expand=True, padx=25, pady=(15, 15))
+        schedules_container.pack(fill="both", expand=True, padx=40, pady=(40, 40))
 
         # Function to display schedules
         def draw_schedules():
@@ -787,7 +807,17 @@ def show_tracker():
                 # Function to delete this schedule
                 def delete_schedule(schedule_key=key):
                     if messagebox.askyesno("Confirm", f"Delete schedule for '{schedule_data[schedule_key]['habit']}'?"):
+                        habit_name = schedule_data[schedule_key]["habit"]
                         del schedule_data[schedule_key]
+
+
+                        # Add deletion to history
+                        habit_history.append({
+                            "habit": habit_name,
+                            "status": "Schedule Deleted",
+                            "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        })
+
                         save_data()
                         draw_schedules()
 
@@ -1144,6 +1174,7 @@ def show_tracker():
         stop_timer()
         timer_seconds = 0
         update_timer_display()
+
 
         # Update habit progress based on time
         habit_name = timer_habit_selector.get()
