@@ -497,12 +497,8 @@ def show_tracker():
 
                         save_data()
                         draw_habits()
-
-                        # Update all displays and selectors
-                        update_habit_selector()
-
+                        update_stats()  # Timer section
                         update_habit_filter()
-                        update_stats()
 
                         # If we're currently on history tab, refresh it
                         if tab_buttons["history"].cget("fg_color") == TEXT_COLOR:
@@ -728,9 +724,9 @@ def show_tracker():
                 habit_entry.delete(0, "end")
 
                 update_habit_selector()  # Update habit selector for timer
-
                 update_habit_filter()  # Update history filter
                 update_stats()  # Update stats display
+
 
                 # Start a reminder thread for this schedule if it's in the future
                 start_reminder_thread(schedule_key, schedule_time, reminder_time if reminder_var.get() else None)
@@ -820,6 +816,10 @@ def show_tracker():
 
                         save_data()
                         draw_schedules()
+                        save_data()
+                        draw_habits()
+                        update_stats()  # Timer section
+                        update_habit_filter()
 
                 delete_button = ctk.CTkButton(button_frame, text="Delete", fg_color="#FF5555", hover_color="#FF0000",
                                               width=80, height=25, command=lambda sk=key: delete_schedule(sk))
@@ -1118,23 +1118,24 @@ def show_tracker():
                 save_data()
                 draw_habits()
                 update_stats()  # Timer section
+                update_habit_filter()
 
-        timer_frame = ctk.CTkFrame(right_frame, fg_color=HIGHLIGHT_COLOR, corner_radius=10)
-        timer_frame.pack(fill="x", padx=15, pady=(0, 15))
+        timer_frame = ctk.CTkFrame(right_frame, fg_color=HIGHLIGHT_COLOR, corner_radius=15)
+        timer_frame.pack(fill="x", padx=15, pady=(15, 15))
 
         timer_label = ctk.CTkLabel(timer_frame, text="Countdown Timer", font=("Arial", 16, "bold"))
-        timer_label.pack(pady=(10, 5), padx=15, anchor="w")
+        timer_label.pack(pady=(40, 40), padx=50, anchor="w")
 
         # Timer content
         timer_habit_frame = ctk.CTkFrame(timer_frame, fg_color="transparent")
-        timer_habit_frame.pack(fill="x", padx=15, pady=5)
+        timer_habit_frame.pack(fill="x", padx=15, pady=15)
 
         ctk.CTkLabel(timer_habit_frame, text="Select Habit:").pack(side="left")
 
         timer_habit_selector = ctk.CTkComboBox(timer_habit_frame,
                                                values=list(habit_data.keys()) or ["No habits available"],
                                                width=150)
-        timer_habit_selector.pack(side="left", padx=(10, 0))
+        timer_habit_selector.pack(side="left", padx=(10, 10))
 
         if list(habit_data.keys()):  # Set initial value if habits exist
             timer_habit_selector.set(list(habit_data.keys())[0])
@@ -1211,6 +1212,7 @@ def show_tracker():
 
         # Update display initially
         update_timer_display()
+        update_timer_habit_selector()
 
         # Update display when time inputs change
         def on_time_inputs_changed(*args):
@@ -1352,6 +1354,7 @@ def show_tracker():
             except ValueError:
                 timer_seconds = 0
                 update_timer_display()
+                update_timer_habit_selector()
 
             # Reset progress bar
             progress_bar.set(0)
@@ -1489,6 +1492,7 @@ def show_tracker():
     draw_habits()
     display_history()
     update_stats()
+    update_habit_filter()
 
     # Setup reminder threads for existing schedules
     for key, schedule in schedule_data.items():
