@@ -11,6 +11,7 @@ import datetime
 from tkinter import filedialog, messagebox
 from reportlab.lib.pagesizes import letter
 from reportlab.pdfgen import canvas
+from tkcalendar import Calendar
 
 # Set appearance and theme
 ctk.set_appearance_mode("System")
@@ -139,7 +140,7 @@ def export_pdf(habit_data, habit_history=None):
         # Title
         pdf.setTitle("Habit Tracker Report")
         pdf.setFont("Helvetica-Bold", 18)
-        pdf.drawString(50, height - 50, f"Habit Tracker Report, {current_user}")
+        pdf.drawString(50, height - 50, f"{current_user}'s, Habit Tracker Report")
 
         # Current Date
         current_date = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -185,7 +186,7 @@ def export_pdf(habit_data, habit_history=None):
             y = height - 50
 
             pdf.setFont("Helvetica-Bold", 18)
-            pdf.drawString(50, y, f"Habit History, {current_user}")
+            pdf.drawString(50, y, f"{current_user}'s ,Habit History Report")
             y -= 30
 
             pdf.setFont("Helvetica-Bold", 12)
@@ -518,214 +519,363 @@ def show_tracker():
                                     hover_color="#aa5555", font=("Arial", 12))
             del_btn.pack(side="left", padx=5)
 
-    # SCHEDULER TAB CONTENT
-    scheduler_frame = content_frames["scheduler"]
+        scheduler_frame = content_frames["scheduler"]
 
-    scheduler_top_frame = ctk.CTkFrame(scheduler_frame, fg_color=HIGHLIGHT_COLOR, corner_radius=10, height=320)
-    scheduler_top_frame.pack(fill="x", pady=(0, 15))
-    scheduler_top_frame.pack_propagate(False)  # Fix the height
+        scheduler_top_frame = ctk.CTkFrame(scheduler_frame, fg_color=HIGHLIGHT_COLOR, corner_radius=10,
+                                           height=380)  # Increased height
+        scheduler_top_frame.pack(fill="x", pady=(0, 15))
+        scheduler_top_frame.pack_propagate(False)  # Fix the height
 
-    scheduler_header = ctk.CTkLabel(scheduler_top_frame, text="Schedule a Habit", font=("Arial", 16, "bold"))
-    scheduler_header.pack(pady=(15, 10), padx=15, anchor="w")
+        scheduler_header = ctk.CTkLabel(scheduler_top_frame, text="Schedule a Habit", font=("Arial", 16, "bold"))
+        scheduler_header.pack(pady=(15, 10), padx=15, anchor="w")
 
-    # Scheduler form
-    form_frame = ctk.CTkFrame(scheduler_top_frame, fg_color="transparent")
-    form_frame.pack(fill="x", padx=15, pady=10)
+        # Scheduler form
+        form_frame = ctk.CTkFrame(scheduler_top_frame, fg_color="transparent")
+        form_frame.pack(fill="x", padx=15, pady=10)
 
-    # Habit selection
-    ctk.CTkLabel(form_frame, text="Select Habit:", anchor="w").grid(row=0, column=0, sticky="w", pady=5)
-    habit_selector = ctk.CTkComboBox(form_frame, values=list(habit_data.keys()) or ["No habits available"], width=250)
-    habit_selector.grid(row=0, column=1, sticky="w", pady=5, padx=(10, 0))
+        # Habit selection
+        ctk.CTkLabel(form_frame, text="Select Habit:", anchor="w").grid(row=0, column=0, sticky="w", pady=5)
+        habit_selector = ctk.CTkComboBox(form_frame, values=list(habit_data.keys()) or ["No habits available"],
+                                         width=250)
+        habit_selector.grid(row=0, column=1, sticky="w", pady=5, padx=(10, 0))
 
-    if list(habit_data.keys()):  # Set initial value if habits exist
-        habit_selector.set(list(habit_data.keys())[0])
-    else:
-        habit_selector.set("No habits available")
-
-    def update_habit_selector():
-        habit_selector.configure(values=list(habit_data.keys()) or ["No habits available"])
-        if list(habit_data.keys()):
+        if list(habit_data.keys()):  # Set initial value if habits exist
             habit_selector.set(list(habit_data.keys())[0])
         else:
             habit_selector.set("No habits available")
 
-    # Date selection (MM/DD/YYYY)
-    ctk.CTkLabel(form_frame, text="Date (MM/DD/YYYY):", anchor="w").grid(row=1, column=0, sticky="w", pady=5)
-    date_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
-    date_frame.grid(row=1, column=1, sticky="w", pady=5, padx=(10, 0))
+        def update_habit_selector():
+            habit_selector.configure(values=list(habit_data.keys()) or ["No habits available"])
+            if list(habit_data.keys()):
+                habit_selector.set(list(habit_data.keys())[0])
+            else:
+                habit_selector.set("No habits available")
 
-    month_entry = ctk.CTkEntry(date_frame, width=40, placeholder_text="MM")
-    month_entry.pack(side="left", padx=(0, 5))
+        # Date selection with calendar and manual input
+        ctk.CTkLabel(form_frame, text="Date:", anchor="w").grid(row=1, column=0, sticky="w", pady=5)
+        date_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
+        date_frame.grid(row=1, column=1, sticky="w", pady=5, padx=(10, 0))
 
-    ctk.CTkLabel(date_frame, text="/").pack(side="left")
+        # Manual date entry
+        month_entry = ctk.CTkEntry(date_frame, width=40, placeholder_text="MM")
+        month_entry.pack(side="left", padx=(0, 5))
 
-    day_entry = ctk.CTkEntry(date_frame, width=40, placeholder_text="DD")
-    day_entry.pack(side="left", padx=5)
+        ctk.CTkLabel(date_frame, text="/").pack(side="left")
 
-    ctk.CTkLabel(date_frame, text="/").pack(side="left")
+        day_entry = ctk.CTkEntry(date_frame, width=40, placeholder_text="DD")
+        day_entry.pack(side="left", padx=5)
 
-    year_entry = ctk.CTkEntry(date_frame, width=60, placeholder_text="YYYY")
-    year_entry.pack(side="left", padx=(5, 0))
+        ctk.CTkLabel(date_frame, text="/").pack(side="left")
 
-    # Time selection (HH:MM)
-    ctk.CTkLabel(form_frame, text="Time (HH:MM):", anchor="w").grid(row=2, column=0, sticky="w", pady=5)
-    time_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
-    time_frame.grid(row=2, column=1, sticky="w", pady=5, padx=(10, 0))
+        year_entry = ctk.CTkEntry(date_frame, width=60, placeholder_text="YYYY")
+        year_entry.pack(side="left", padx=(5, 5))
 
-    hour_entry = ctk.CTkEntry(time_frame, width=40, placeholder_text="HH")
-    hour_entry.pack(side="left")
+        # Calendar popup button
+        def open_calendar():
+            cal_window = ctk.CTkToplevel(scheduler_frame)
+            cal_window.title("Select Date")
+            cal_window.geometry("300x300")
+            cal_window.resizable(False, False)
 
-    ctk.CTkLabel(time_frame, text=":").pack(side="left")
+            today = datetime.datetime.now()
 
-    minute_entry = ctk.CTkEntry(time_frame, width=40, placeholder_text="MM")
-    minute_entry.pack(side="left", padx=(5, 0))
+            cal = Calendar(cal_window, selectmode="day", year=today.year, month=today.month, day=today.day)
+            cal.pack(pady=20)
 
-    # For default date values
-    today = datetime.datetime.now()
-    month_entry.insert(0, f"{today.month:02d}")
-    day_entry.insert(0, f"{today.day:02d}")
-    year_entry.insert(0, f"{today.year}")
-    hour_entry.insert(0, f"{today.hour:02d}")
-    minute_entry.insert(0, f"{(today.minute + 5) % 60:02d}")  # Default to 5 minutes from now
+            def set_date():
+                selected_date = cal.get_date()  # Format: MM/DD/YY
+                month, day, year_short = selected_date.split('/')
+                year = f"20{year_short}" if int(year_short) < 50 else f"19{year_short}"  # Assume 20XX for years < 50
 
-    # Add schedule button
-    def add_schedule():
-        habit_name = habit_selector.get()
-        if habit_name == "No habits available":
-            messagebox.showinfo("No Habit", "Please add habits first")
-            return
+                month_entry.delete(0, 'end')
+                month_entry.insert(0, month)
 
-        try:
-            # Validate date
-            month = int(month_entry.get())
-            day = int(day_entry.get())
-            year = int(year_entry.get())
-            hour = int(hour_entry.get())
-            minute = int(minute_entry.get())
+                day_entry.delete(0, 'end')
+                day_entry.insert(0, day)
 
-            # Basic validation
-            if not (1 <= month <= 12 and 1 <= day <= 31 and year >= 2023 and 0 <= hour <= 23 and 0 <= minute <= 59):
-                raise ValueError("Invalid date/time values")
+                year_entry.delete(0, 'end')
+                year_entry.insert(0, year)
 
-            # Create a datetime object to validate the date further
-            schedule_time = datetime.datetime(year, month, day, hour, minute)
+                cal_window.destroy()
 
-            # Create a unique key for this schedule
-            schedule_key = f"{habit_name}_{schedule_time.strftime('%Y%m%d%H%M%S')}"
+            select_button = ctk.CTkButton(cal_window, text="Select", command=set_date)
+            select_button.pack(pady=10)
 
-            # Store the schedule
-            schedule_data[schedule_key] = {
-                "habit": habit_name,
-                "date": schedule_time.strftime("%Y-%m-%d"),
-                "time": schedule_time.strftime("%H:%M"),
-                "timestamp": schedule_time.timestamp(),
-                "notified": False
-            }
+        calendar_button = ctk.CTkButton(date_frame, text="📅", width=30, command=open_calendar)
+        calendar_button.pack(side="left", padx=(5, 0))
 
-            # Add to history
-            habit_history.append({
-                "habit": habit_name,
-                "status": "Scheduled",
-                "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            })
+        # Time selection (HH:MM)
+        ctk.CTkLabel(form_frame, text="Time (HH:MM):", anchor="w").grid(row=2, column=0, sticky="w", pady=5)
+        time_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
+        time_frame.grid(row=2, column=1, sticky="w", pady=5, padx=(10, 0))
 
-            save_data()
+        hour_entry = ctk.CTkEntry(time_frame, width=40, placeholder_text="HH")
+        hour_entry.pack(side="left")
 
-            draw_schedules()
+        ctk.CTkLabel(time_frame, text=":").pack(side="left")
 
-            # Start a reminder thread for this schedule if it's in the future
-            start_reminder_thread(schedule_key, schedule_time)
+        minute_entry = ctk.CTkEntry(time_frame, width=40, placeholder_text="MM")
+        minute_entry.pack(side="left", padx=(5, 0))
 
-            messagebox.showinfo("Success", f"Schedule added for '{habit_name}'")
+        # For default date values
+        today = datetime.datetime.now()
+        month_entry.insert(0, f"{today.month:02d}")
+        day_entry.insert(0, f"{today.day:02d}")
+        year_entry.insert(0, f"{today.year}")
+        hour_entry.insert(0, f"{today.hour:02d}")
+        minute_entry.insert(0, f"{(today.minute + 5) % 60:02d}")  # Default to 5 minutes from now
 
-        except ValueError as e:
-            messagebox.showerror("Invalid Input", f"Please check your date and time inputs: {str(e)}")
+        # Reminder Options Section
+        ctk.CTkLabel(form_frame, text="Reminder Options:", anchor="w").grid(row=3, column=0, sticky="w", pady=5)
+        reminder_frame = ctk.CTkFrame(form_frame, fg_color="transparent")
+        reminder_frame.grid(row=3, column=1, sticky="w", pady=5, padx=(10, 0))
 
-    schedule_btn = ctk.CTkButton(
-        form_frame, text="Add Schedule",
-        command=add_schedule,
-        fg_color=TEXT_COLOR, hover_color=CALENDAR_SELECTED
-    )
-    schedule_btn.grid(row=3, column=1, sticky="w", pady=15, padx=(10, 0))
+        # Enable reminder checkbox
+        reminder_var = tk.BooleanVar(value=True)
+        reminder_check = ctk.CTkCheckBox(reminder_frame, text="Enable reminder", variable=reminder_var)
+        reminder_check.pack(side="left", padx=(0, 10))
 
-    # Calendar view in scheduler tab
-    calendar_frame = ctk.CTkFrame(scheduler_top_frame, fg_color="transparent")
-    calendar_frame.pack(fill="both", expand=True, padx=15, pady=(0, 15))
+        # Reminder time selection
+        reminder_time_label = ctk.CTkLabel(reminder_frame, text="Remind")
+        reminder_time_label.pack(side="left")
 
-    # Month navigation for calendar
-    cal_header_frame = ctk.CTkFrame(calendar_frame, fg_color="transparent")
-    cal_header_frame.pack(fill="x", pady=(0, 10))
+        remind_times = ["At time of event", "5 minutes before", "10 minutes before", "15 minutes before",
+                        "30 minutes before", "1 hour before", "1 day before"]
+        reminder_time_var = ctk.StringVar(value=remind_times[0])
+        reminder_time_dropdown = ctk.CTkComboBox(reminder_frame, values=remind_times, variable=reminder_time_var,
+                                                 width=150)
+        reminder_time_dropdown.pack(side="left", padx=5)
 
-    # Schedules list
-    schedules_frame = ctk.CTkScrollableFrame(scheduler_frame, fg_color=HIGHLIGHT_COLOR, corner_radius=10)
-    schedules_frame.pack(fill="both", expand=True)
+        # Add schedule button
+        def add_schedule():
+            habit_name = habit_selector.get()
+            if habit_name == "No habits available":
+                messagebox.showinfo("No Habit", "Please add habits first")
+                return
 
-
-    schedules_header = ctk.CTkLabel(schedules_frame, text="Your Scheduled Habits", font=("Arial", 16, "bold"))
-    schedules_header.pack(pady=(10, 15), padx=15, anchor="w")
-
-    def draw_schedules():
-        # Clear previous schedules (except the header)
-        for widget in list(schedules_frame.winfo_children())[1:]:
-            widget.destroy()
-
-        if not schedule_data:
-            no_schedules = ctk.CTkLabel(schedules_frame, text="No scheduled habits yet. Add one above!",
-                                        font=("Arial", 14))
-            no_schedules.pack(pady=20)
-            return
-
-        # Sort schedules by timestamp (earliest first)
-        sorted_schedules = sorted(schedule_data.items(), key=lambda x: x[1]["timestamp"])
-
-        for key, schedule in sorted_schedules:
-            schedule_item = ctk.CTkFrame(schedules_frame, fg_color="transparent", height=60)
-            schedule_item.pack(fill="x", padx=10, pady=5)
-            schedule_item.pack_propagate(False)  # Keep consistent height
-
-            # Left side with info
-            info_frame = ctk.CTkFrame(schedule_item, fg_color="transparent")
-            info_frame.pack(side="left", fill="y")
-
-            habit_name = schedule["habit"]
-            date_str = schedule["date"]
-            time_str = schedule["time"]
-
-            # Format: "Habit Name - May 15, 2023 at 14:30"
             try:
-                date_obj = datetime.datetime.strptime(date_str, "%Y-%m-%d")
-                formatted_date = date_obj.strftime("%b %d, %Y")
+                # Validate date
+                month = int(month_entry.get())
+                day = int(day_entry.get())
+                year = int(year_entry.get())
+                hour = int(hour_entry.get())
+                minute = int(minute_entry.get())
 
-                schedule_text = f"{habit_name} - {formatted_date} at {time_str}"
-            except ValueError:
-                schedule_text = f"{habit_name} - {date_str} at {time_str}"
+                # Basic validation
+                if not (1 <= month <= 12 and 1 <= day <= 31 and year >= 2023 and 0 <= hour <= 23 and 0 <= minute <= 59):
+                    raise ValueError("Invalid date/time values")
 
-            schedule_label = ctk.CTkLabel(info_frame, text=schedule_text, font=("Arial", 14))
-            schedule_label.pack(side="left", padx=10, pady=10)
+                # Create a datetime object to validate the date further
+                schedule_time = datetime.datetime(year, month, day, hour, minute)
 
-            # Right side with buttons
-            btn_frame = ctk.CTkFrame(schedule_item, fg_color="transparent")
-            btn_frame.pack(side="right", fill="y")
+                # Create a unique key for this schedule
+                schedule_key = f"{habit_name}_{schedule_time.strftime('%Y%m%d%H%M%S')}"
 
-            def delete_schedule(schedule_key=key):
+                # Calculate reminder time if enabled
+                reminder_time = None
+                if reminder_var.get():
+                    remind_option = reminder_time_var.get()
+                    if remind_option == "At time of event":
+                        reminder_time = schedule_time
+                    elif remind_option == "5 minutes before":
+                        reminder_time = schedule_time - datetime.timedelta(minutes=5)
+                    elif remind_option == "10 minutes before":
+                        reminder_time = schedule_time - datetime.timedelta(minutes=10)
+                    elif remind_option == "15 minutes before":
+                        reminder_time = schedule_time - datetime.timedelta(minutes=15)
+                    elif remind_option == "30 minutes before":
+                        reminder_time = schedule_time - datetime.timedelta(minutes=30)
+                    elif remind_option == "1 hour before":
+                        reminder_time = schedule_time - datetime.timedelta(hours=1)
+                    elif remind_option == "1 day before":
+                        reminder_time = schedule_time - datetime.timedelta(days=1)
+
+                # Store the schedule
+                schedule_data[schedule_key] = {
+                    "habit": habit_name,
+                    "date": schedule_time.strftime("%Y-%m-%d"),
+                    "time": schedule_time.strftime("%H:%M"),
+                    "timestamp": schedule_time.timestamp(),
+                    "notified": False,
+                    "reminder_enabled": reminder_var.get(),
+                    "reminder_option": reminder_time_var.get() if reminder_var.get() else None,
+                    "reminder_timestamp": reminder_time.timestamp() if reminder_time else None
+                }
+
+                # Add to history
+                habit_history.append({
+                    "habit": habit_name,
+                    "status": "Scheduled",
+                    "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                })
+
+                save_data()
+                draw_schedules()
+
+                # Start a reminder thread for this schedule if it's in the future
+                start_reminder_thread(schedule_key, schedule_time, reminder_time if reminder_var.get() else None)
+
+                messagebox.showinfo("Success",
+                                    f"Schedule added for '{habit_name}' with {reminder_time_var.get() if reminder_var.get() else 'no'} reminder")
+
+            except ValueError as e:
+                messagebox.showerror("Invalid Input", f"Please check your date and time inputs: {str(e)}")
+
+        add_button = ctk.CTkButton(scheduler_top_frame, text="Add Schedule", command=add_schedule)
+        add_button.pack(pady=15)
+
+        # Bottom frame for upcoming schedules
+        scheduler_bottom_frame = ctk.CTkFrame(scheduler_frame, fg_color=HIGHLIGHT_COLOR, corner_radius=14)
+        scheduler_bottom_frame.pack(fill="both", expand=True)
+
+        schedules_header = ctk.CTkLabel(scheduler_bottom_frame, text="Upcoming Schedules", font=("Arial", 18, "bold"))
+        schedules_header.pack(pady=(15, 15), padx=25, anchor="w")
+
+        # Scrollable frame for schedules
+        schedules_container = ctk.CTkScrollableFrame(scheduler_bottom_frame, fg_color="transparent")
+        schedules_container.pack(fill="both", expand=True, padx=25, pady=(15, 15))
+
+        # Function to display schedules
+        def draw_schedules():
+            # Clear existing widgets
+            for widget in schedules_container.winfo_children():
+                widget.destroy()
+
+            # Get current time for comparison
+            now = datetime.datetime.now()
+
+            # Filter and sort upcoming schedules
+            upcoming_schedules = {}
+            for key, sched in schedule_data.items():
+                sched_time = datetime.datetime.fromtimestamp(sched["timestamp"])
+                if sched_time >= now:
+                    upcoming_schedules[key] = sched
+
+            # Sort by timestamp
+            sorted_schedules = sorted(upcoming_schedules.items(), key=lambda x: x[1]["timestamp"])
+
+            if not sorted_schedules:
+                no_schedules_label = ctk.CTkLabel(schedules_container, text="No upcoming schedules")
+                no_schedules_label.pack(pady=20)
+                return
+
+            # Create schedule items
+            for idx, (key, sched) in enumerate(sorted_schedules):
+                schedule_frame = ctk.CTkFrame(schedules_container, fg_color=("#e0e0e0", "#333333"), corner_radius=5)
+                schedule_frame.pack(fill="x", pady=5)
+
+                # Format date and time for display
+                date_obj = datetime.datetime.strptime(f"{sched['date']} {sched['time']}", "%Y-%m-%d %H:%M")
+                display_date = date_obj.strftime("%A, %B %d, %Y")
+                display_time = date_obj.strftime("%I:%M %p")
+
+                habit_label = ctk.CTkLabel(schedule_frame, text=sched["habit"], font=("Arial", 14, "bold"))
+                habit_label.pack(anchor="w", padx=10, pady=(10, 0))
+
+                date_time_label = ctk.CTkLabel(schedule_frame, text=f"{display_date} at {display_time}")
+                date_time_label.pack(anchor="w", padx=10, pady=(5, 0))
+
+                # Show reminder info if enabled
+                if sched.get("reminder_enabled", False):
+                    reminder_label = ctk.CTkLabel(schedule_frame,
+                                                  text=f"Reminder: {sched.get('reminder_option', 'At time of event')}")
+                    reminder_label.pack(anchor="w", padx=10, pady=(5, 0))
+
+                button_frame = ctk.CTkFrame(schedule_frame, fg_color="transparent")
+                button_frame.pack(fill="x", padx=10, pady=10)
+
+                # Function to delete this schedule
+                def delete_schedule(schedule_key=key):
+                    if messagebox.askyesno("Confirm", f"Delete schedule for '{schedule_data[schedule_key]['habit']}'?"):
+                        del schedule_data[schedule_key]
+                        save_data()
+                        draw_schedules()
+
+                delete_button = ctk.CTkButton(button_frame, text="Delete", fg_color="#FF5555", hover_color="#FF0000",
+                                              width=80, height=25, command=lambda sk=key: delete_schedule(sk))
+                delete_button.pack(side="right")
+
+        # Call draw_schedules once to initialize
+        draw_schedules()
+
+        return update_habit_selector, draw_schedules
+
+    # Now let's enhance the reminder functionality
+    def start_reminder_thread(schedule_key, schedule_time, reminder_time=None):
+        """
+        Starts a thread to check for and display reminders
+
+        Parameters:
+        schedule_key - The unique key for this schedule
+        schedule_time - The datetime when the habit is scheduled
+        reminder_time - Optional datetime when to show the reminder (if different from schedule_time)
+        """
+        import threading
+        import time
+
+        def check_and_notify():
+            # Reference global schedule_data from the main app
+            nonlocal schedule_key, schedule_time, reminder_time
+
+            # If the schedule was deleted, exit the thread
+            if schedule_key not in schedule_data:
+                return
+
+            # Check both the main time and reminder time
+            now = datetime.datetime.now()
+
+            # Check for the reminder time first
+            if reminder_time and not schedule_data[schedule_key].get("reminder_notified", False):
+                seconds_until_reminder = (reminder_time - now).total_seconds()
+
+                if seconds_until_reminder > 0:
+                    # Sleep until reminder time
+                    time.sleep(seconds_until_reminder)
+
+                # Check again if schedule exists (could have been deleted while sleeping)
                 if schedule_key in schedule_data:
-                    habit_name = schedule_data[schedule_key]["habit"]
-                    del schedule_data[schedule_key]
-
-                    # Add deletion to history
-                    habit_history.append({
-                        "habit": habit_name,
-                        "status": "Schedule Deleted",
-                        "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    })
-
+                    # Update the notified flag
+                    schedule_data[schedule_key]["reminder_notified"] = True
                     save_data()
-                    draw_schedules()
 
-            del_btn = ctk.CTkButton(btn_frame, text="Delete", width=80, height=30,
-                                    command=delete_schedule, fg_color="#666666",
-                                    hover_color="#aa5555", font=("Arial", 12))
-            del_btn.pack(side="right", padx=10, pady=15)
+                    # Show reminder notification
+                    habit_name = schedule_data[schedule_key]["habit"]
+
+                    # Calculate time until event
+                    time_diff = schedule_time - reminder_time
+                    if time_diff.days > 0:
+                        time_until = f"{time_diff.days} day{'s' if time_diff.days > 1 else ''}"
+                    elif time_diff.seconds // 3600 > 0:
+                        time_until = f"{time_diff.seconds // 3600} hour{'s' if time_diff.seconds // 3600 > 1 else ''}"
+                    elif time_diff.seconds // 60 > 0:
+                        time_until = f"{time_diff.seconds // 60} minute{'s' if time_diff.seconds // 60 > 1 else ''}"
+                    else:
+                        time_until = "now"
+
+                    messagebox.showinfo("Reminder", f"Reminder for habit '{habit_name}' in {time_until}")
+
+            # Now check for the main schedule time
+            if not schedule_data[schedule_key].get("notified", False):
+                seconds_until_schedule = (schedule_time - now).total_seconds()
+
+                if seconds_until_schedule > 0:
+                    # Sleep until schedule time
+                    time.sleep(seconds_until_schedule)
+
+                # Check again if schedule exists (could have been deleted while sleeping)
+                if schedule_key in schedule_data:
+                    # Update the notified flag
+                    schedule_data[schedule_key]["notified"] = True
+                    save_data()
+
+                    # Show the main notification
+                    habit_name = schedule_data[schedule_key]["habit"]
+                    messagebox.showinfo("Habit Reminder", f"Time to complete your habit: '{habit_name}'")
+
+        # Start the thread
+        reminder_thread = threading.Thread(target=check_and_notify)
+        reminder_thread.daemon = True  # Thread will close when main program exits
+        reminder_thread.start()
 
         # HISTORY TAB CONTENT
 
@@ -790,9 +940,20 @@ def show_tracker():
         if selected_habit != "All Habits":
             filtered_history = [item for item in habit_history if item["habit"] == selected_habit]
 
-        # Sort by time
+        # Sort by time with error handling
+        valid_history = []
+        for item in filtered_history:
+            try:
+                if "time" in item and item["time"]:
+                    # Try to parse the datetime string
+                    datetime.datetime.strptime(item["time"], "%Y-%m-%d %H:%M:%S")
+                    valid_history.append(item)
+            except (ValueError, TypeError):
+                # Skip items with invalid datetime format
+                continue
+
         sort_by = sort_options.get()
-        sorted_history = sorted(filtered_history,
+        sorted_history = sorted(valid_history,
                                 key=lambda x: datetime.datetime.strptime(x["time"], "%Y-%m-%d %H:%M:%S"),
                                 reverse=(sort_by == "Newest First"))
 
@@ -1119,7 +1280,7 @@ def show_tracker():
                 # Show desktop notification if possible
                 try:
                     if platform.system() == "Windows":
-                        from win10toast import ToastNotifier
+                        from random import ToastNotifier
                         toaster = ToastNotifier()
                         toaster.show_toast("Habit Reminder", f"Time to do: {habit_name}", duration=10)
                     elif platform.system() == "Darwin":  # macOS
@@ -1145,7 +1306,6 @@ def show_tracker():
 
     # Initialize displays
     draw_habits()
-    draw_schedules()
     display_history()
     update_stats()
 
