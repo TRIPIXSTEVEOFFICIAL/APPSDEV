@@ -383,7 +383,7 @@ def show_tracker():
 
             # Update all selectors and displays that show habits
             update_habit_filter()  # Update habit selector for timer
-            update_timer_habit_selector()  # Update timer habit dropdown
+
             update_habit_filter()  # Update history filter
             update_stats()  # Update stats display
 
@@ -440,7 +440,7 @@ def show_tracker():
                 update_stats()  # Update stats when habit is checked/unchecked
                 # Update all selectors and displays that show habits
                 update_habit_selector()  # Update habit selector for timer
-                update_timer_habit_selector()  # Update timer habit dropdown
+
                 update_habit_filter()  # Update history filter
                 update_stats()  # Update stats display
 
@@ -470,7 +470,7 @@ def show_tracker():
                 update_stats()  # Update stats display
                 # Update all selectors and displays that show habits
                 update_habit_selector()  # Update habit selector for timer
-                update_timer_habit_selector()  # Update timer habit dropdown
+
                 update_habit_filter()  # Update history filter
                 update_stats()  # Update stats display
 
@@ -500,7 +500,7 @@ def show_tracker():
 
                         # Update all displays and selectors
                         update_habit_selector()
-                        update_timer_habit_selector()
+
                         update_habit_filter()
                         update_stats()
 
@@ -580,8 +580,8 @@ def show_tracker():
 
         update_habit_selector()
         # Update all selectors and displays that show habits
-        update_habit_selector()  # Update habit selector for timer
-        update_timer_habit_selector()  # Update timer habit dropdown
+
+        update_habit_selector()  # Update timer habit dropdown
         update_habit_filter()  # Update history filter
         update_stats()  # Update stats display
         # Calendar popup button
@@ -728,7 +728,7 @@ def show_tracker():
                 habit_entry.delete(0, "end")
 
                 update_habit_selector()  # Update habit selector for timer
-                update_timer_habit_selector()  # Update timer habit dropdown
+
                 update_habit_filter()  # Update history filter
                 update_stats()  # Update stats display
 
@@ -1071,154 +1071,304 @@ def show_tracker():
         prog_bar.set(completion_rate / 100)
         prog_bar.pack(fill="x")
 
-    # Timer section
-    timer_frame = ctk.CTkFrame(right_frame, fg_color=HIGHLIGHT_COLOR, corner_radius=10)
-    timer_frame.pack(fill="x", padx=15, pady=(0, 15))
+        def record_timer_session(total_time, remaining_time):
+            """Record a timer session in the history"""
+            time_spent = total_time - remaining_time
 
-    timer_label = ctk.CTkLabel(timer_frame, text="Habit Timer", font=("Arial", 16, "bold"))
-    timer_label.pack(pady=(10, 5), padx=15, anchor="w")
+            # Update habit progress based on time
+            habit_name = timer_habit_selector.get()
+            if habit_name != "No habits available" and time_spent > 0:
+                hours_spent = time_spent // 3600
+                minutes_spent = (time_spent % 3600) // 60
+                seconds_spent = time_spent % 60
 
-    # Timer content
-    timer_habit_frame = ctk.CTkFrame(timer_frame, fg_color="transparent")
-    timer_habit_frame.pack(fill="x", padx=15, pady=5)
+                # Format time string based on duration
+                time_str = ""
+                if hours_spent > 0:
+                    time_str = f"{hours_spent} hr {minutes_spent} min {seconds_spent} sec"
+                else:
+                    time_str = f"{minutes_spent} min {seconds_spent} sec"
 
-    ctk.CTkLabel(timer_habit_frame, text="Select Habit:").pack(side="left")
+                # Add timer session to history
+                habit_history.append({
+                    "habit": habit_name,
+                    "status": f"Timer Session ({time_str})",
+                    "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                })
 
-    timer_habit_selector = ctk.CTkComboBox(timer_habit_frame, values=list(habit_data.keys()) or ["No habits available"],
-                                           width=150)
-    timer_habit_selector.pack(side="left", padx=(10, 0))
+                # Update progress if it wasn't already completed
+                if not habit_data[habit_name].get("checked", False):
+                    # Calculate progress based on actual time spent compared to target time
+                    target_time = total_time
+                    percentage_completed = min(100, (time_spent / target_time) * 100)
 
-    if list(habit_data.keys()):  # Set initial value if habits exist
-        timer_habit_selector.set(list(habit_data.keys())[0])
-    else:
-        timer_habit_selector.set("No habits available")
+                    # Update progress only if this session's progress is better than existing
+                    habit_data[habit_name]["progress"] = max(habit_data[habit_name].get("progress", 0),
+                                                             int(percentage_completed))
 
-    def update_timer_habit_selector():
-        timer_habit_selector.configure(values=list(habit_data.keys()) or ["No habits available"])
-        if list(habit_data.keys()):
+                    # Mark as checked if progress is 100%
+                    if habit_data[habit_name]["progress"] >= 100:
+                        habit_data[habit_name]["checked"] = True
+                        habit_history.append({
+                            "habit": habit_name,
+                            "status": "Completed via Timer",
+                            "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        })
+
+                save_data()
+                draw_habits()
+                update_stats()  # Timer section
+
+        timer_frame = ctk.CTkFrame(right_frame, fg_color=HIGHLIGHT_COLOR, corner_radius=10)
+        timer_frame.pack(fill="x", padx=15, pady=(0, 15))
+
+        timer_label = ctk.CTkLabel(timer_frame, text="Countdown Timer", font=("Arial", 16, "bold"))
+        timer_label.pack(pady=(10, 5), padx=15, anchor="w")
+
+        # Timer content
+        timer_habit_frame = ctk.CTkFrame(timer_frame, fg_color="transparent")
+        timer_habit_frame.pack(fill="x", padx=15, pady=5)
+
+        ctk.CTkLabel(timer_habit_frame, text="Select Habit:").pack(side="left")
+
+        timer_habit_selector = ctk.CTkComboBox(timer_habit_frame,
+                                               values=list(habit_data.keys()) or ["No habits available"],
+                                               width=150)
+        timer_habit_selector.pack(side="left", padx=(10, 0))
+
+        if list(habit_data.keys()):  # Set initial value if habits exist
             timer_habit_selector.set(list(habit_data.keys())[0])
         else:
             timer_habit_selector.set("No habits available")
 
-    # Timer display
-    timer_display_frame = ctk.CTkFrame(timer_frame, fg_color=DARK_COLOR, height=80, corner_radius=5)
-    timer_display_frame.pack(fill="x", padx=15, pady=10)
-    timer_display_frame.pack_propagate(False)
+        def update_timer_habit_selector():
+            timer_habit_selector.configure(values=list(habit_data.keys()) or ["No habits available"])
+            if list(habit_data.keys()):
+                timer_habit_selector.set(list(habit_data.keys())[0])
+            else:
+                timer_habit_selector.set("No habits available")
 
-    timer_time = ctk.CTkLabel(timer_display_frame, text="00:00", font=("Arial", 30, "bold"))
-    timer_time.pack(pady=15)
+        # Time setter frame
+        time_setter_frame = ctk.CTkFrame(timer_frame, fg_color="transparent")
+        time_setter_frame.pack(fill="x", padx=15, pady=5)
 
-    # Timer controls
-    timer_controls = ctk.CTkFrame(timer_frame, fg_color="transparent")
-    timer_controls.pack(fill="x", padx=15, pady=(0, 15))
+        ctk.CTkLabel(time_setter_frame, text="Set Time:").pack(side="left")
 
-    # Timer variables
-    timer_running = False
-    timer_seconds = 0
-    timer_thread = None
-    timer_stop_event = threading.Event()
+        # Hours, minutes and seconds entry
+        hours_entry = ctk.CTkEntry(time_setter_frame, width=50, placeholder_text="Hr")
+        hours_entry.pack(side="left", padx=(10, 0))
+        hours_entry.insert(0, "00")  # Default to 0 hours
 
-    def update_timer_display():
-        minutes = timer_seconds // 60
-        seconds = timer_seconds % 60
-        timer_time.configure(text=f"{minutes:02d}:{seconds:02d}")
+        ctk.CTkLabel(time_setter_frame, text=":").pack(side="left", padx=(2, 2))
 
-    def timer_tick():
-        # Don't need global here since we're using nonlocal below
-        while not timer_stop_event.is_set():
-            nonlocal timer_seconds
-            timer_seconds += 1
+        minutes_entry = ctk.CTkEntry(time_setter_frame, width=50, placeholder_text="Min")
+        minutes_entry.pack(side="left")
+        minutes_entry.insert(0, "25")  # Default to 25 minutes (pomodoro)
 
-            # Use after method to update UI from main thread
-            app.after(0, update_timer_display)
+        ctk.CTkLabel(time_setter_frame, text=":").pack(side="left", padx=(2, 2))
 
-            time.sleep(1)
+        seconds_entry = ctk.CTkEntry(time_setter_frame, width=50, placeholder_text="Sec")
+        seconds_entry.pack(side="left")
+        seconds_entry.insert(0, "00")  # Default to 0 seconds
 
-    def start_timer():
-        nonlocal timer_running, timer_thread, timer_stop_event
+        # Timer display
+        timer_display_frame = ctk.CTkFrame(timer_frame, fg_color=DARK_COLOR, height=80, corner_radius=5)
+        timer_display_frame.pack(fill="x", padx=15, pady=10)
+        timer_display_frame.pack_propagate(False)
 
-        if timer_running:
-            return
+        timer_time = ctk.CTkLabel(timer_display_frame, text="25:00", font=("Arial", 30, "bold"))
+        timer_time.pack(pady=(15, 5))
 
-        habit_name = timer_habit_selector.get()
-        if habit_name == "No habits available":
-            messagebox.showinfo("No Habit", "Please add habits first")
-            return
+        # Add progress bar
+        progress_bar = ctk.CTkProgressBar(timer_display_frame, width=250, height=10,
+                                          progress_color=TEXT_COLOR, fg_color="#333333")
+        progress_bar.pack(pady=(0, 10))
+        progress_bar.set(0)  # Initialize at 0
 
-        timer_running = True
-        timer_stop_event.clear()
-        timer_thread = threading.Thread(target=timer_tick)
-        timer_thread.daemon = True
-        timer_thread.start()
+        # Timer controls
+        timer_controls = ctk.CTkFrame(timer_frame, fg_color="transparent")
+        timer_controls.pack(fill="x", padx=15, pady=(0, 15))
 
-        start_btn.configure(state="disabled")
-        stop_btn.configure(state="normal")
-        reset_btn.configure(state="normal")
-
-    def stop_timer():
-        nonlocal timer_running, timer_thread
-
-        if not timer_running:
-            return
-
-        timer_stop_event.set()
-        if timer_thread:
-            timer_thread.join(0.1)
-
+        # Timer variables
         timer_running = False
-        start_btn.configure(state="normal")
-        stop_btn.configure(state="disabled")
+        timer_seconds = 0  # Will be set when timer starts
+        timer_thread = None
+        timer_stop_event = threading.Event()
+        initial_seconds = 0  # To track the initial time set
 
-    def reset_timer():
-        nonlocal timer_seconds
-        stop_timer()
-        timer_seconds = 0
+        def update_timer_display():
+            hours = timer_seconds // 3600
+            minutes = (timer_seconds % 3600) // 60
+            seconds = timer_seconds % 60
+            timer_time.configure(text=f"{hours:02d}:{minutes:02d}:{seconds:02d}")
+
+            # Update progress bar
+            if initial_seconds > 0:
+                progress_value = 1 - (timer_seconds / initial_seconds)
+                progress_bar.set(progress_value)
+            else:
+                progress_bar.set(0)
+
+        # Update display initially
         update_timer_display()
 
+        # Update display when time inputs change
+        def on_time_inputs_changed(*args):
+            if not timer_running:
+                try:
+                    hrs = int(hours_entry.get() or "0")
+                    mins = int(minutes_entry.get() or "0")
+                    secs = int(seconds_entry.get() or "0")
+                    timer_time.configure(text=f"{hrs:02d}:{mins:02d}:{secs:02d}")
+                except ValueError:
+                    pass
 
-        # Update habit progress based on time
-        habit_name = timer_habit_selector.get()
-        if habit_name != "No habits available" and timer_seconds > 0:
-            # Add timer session to history
-            habit_history.append({
-                "habit": habit_name,
-                "status": f"Timer Session ({timer_seconds // 60} min)",
-                "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            })
+        # Track changes to time entry fields
+        hours_var = ctk.StringVar()
+        minutes_var = ctk.StringVar()
+        seconds_var = ctk.StringVar()
+        hours_entry.configure(textvariable=hours_var)
+        minutes_entry.configure(textvariable=minutes_var)
+        seconds_entry.configure(textvariable=seconds_var)
+        hours_var.trace_add("write", on_time_inputs_changed)
+        minutes_var.trace_add("write", on_time_inputs_changed)
+        seconds_var.trace_add("write", on_time_inputs_changed)
 
-            # Update progress if it wasn't already completed
-            if not habit_data[habit_name].get("checked", False):
-                # Progress calculation: 10 minutes = 100% (for example)
-                progress = min(100, timer_seconds / 600 * 100)
-                habit_data[habit_name]["progress"] = max(habit_data[habit_name].get("progress", 0), int(progress))
+        def timer_tick():
+            nonlocal timer_seconds
+            while not timer_stop_event.is_set() and timer_seconds > 0:
+                time.sleep(1)
+                timer_seconds -= 1
 
-                # Mark as checked if progress is 100%
-                if habit_data[habit_name]["progress"] >= 100:
-                    habit_data[habit_name]["checked"] = True
-                    habit_history.append({
-                        "habit": habit_name,
-                        "status": "Completed via Timer",
-                        "time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    })
+                # Use after method to update UI from main thread
+                app.after(0, update_timer_display)
 
-            save_data()
-            draw_habits()
-            update_stats()
+                # Check if timer reached zero
+                if timer_seconds <= 0:
+                    app.after(0, lambda: handle_timer_completion())
+                    break
 
-        reset_btn.configure(state="disabled")
+        def handle_timer_completion():
+            habit_name = timer_habit_selector.get()
 
-    # Timer buttons
-    start_btn = ctk.CTkButton(timer_controls, text="Start", command=start_timer,
-                              fg_color=TEXT_COLOR, hover_color=CALENDAR_SELECTED, width=70)
-    start_btn.pack(side="left", padx=(0, 5))
+            # Show completion notification
+            messagebox.showinfo("Timer Complete", f"Time's up for {habit_name}!")
 
-    stop_btn = ctk.CTkButton(timer_controls, text="Stop", command=stop_timer,
-                             state="disabled", fg_color="#666666", hover_color="#aa5555", width=70)
-    stop_btn.pack(side="left", padx=5)
+            # Record the completed session
+            record_timer_session(initial_seconds, 0)  # All time was used
 
-    reset_btn = ctk.CTkButton(timer_controls, text="Reset", command=reset_timer,
-                              state="disabled", fg_color=HIGHLIGHT_COLOR, hover_color="#1a5f7a", width=70)
-    reset_btn.pack(side="left", padx=5)
+            # Reset the timer
+            reset_timer(auto_reset=True)  # Auto reset without calculating time again
+
+        def start_timer():
+            nonlocal timer_running, timer_thread, timer_stop_event, timer_seconds, initial_seconds
+
+            if timer_running:
+                return
+
+            habit_name = timer_habit_selector.get()
+            if habit_name == "No habits available":
+                messagebox.showinfo("No Habit", "Please add habits first")
+                return
+
+            # Set timer value based on custom inputs
+            try:
+                # Get and validate custom time inputs
+                hrs = hours_entry.get().strip() or "0"
+                mins = minutes_entry.get().strip() or "0"
+                secs = seconds_entry.get().strip() or "0"
+
+                try:
+                    hrs = int(hrs)
+                    mins = int(mins)
+                    secs = int(secs)
+
+                    # Basic validation
+                    if hrs < 0 or mins < 0 or secs < 0 or mins >= 60 or secs >= 60:
+                        raise ValueError("Invalid time format")
+
+                    if hrs == 0 and mins == 0 and secs == 0:
+                        messagebox.showinfo("Invalid Time", "Please enter a time greater than 0")
+                        return
+
+                    timer_seconds = hrs * 3600 + mins * 60 + secs
+                except ValueError:
+                    messagebox.showinfo("Invalid Time", "Please enter valid numbers for hours, minutes and seconds")
+                    return
+
+                initial_seconds = timer_seconds  # Store initial time for progress calculation
+                update_timer_display()
+            except ValueError:
+                messagebox.showinfo("Invalid Time", "Please enter a valid time")
+                return
+
+            timer_running = True
+            timer_stop_event.clear()
+            timer_thread = threading.Thread(target=timer_tick)
+            timer_thread.daemon = True
+            timer_thread.start()
+
+            start_btn.configure(state="disabled")
+            stop_btn.configure(state="normal")
+            reset_btn.configure(state="normal")
+            hours_entry.configure(state="disabled")
+            minutes_entry.configure(state="disabled")
+            seconds_entry.configure(state="disabled")
+
+        def stop_timer():
+            nonlocal timer_running, timer_thread
+
+            if not timer_running:
+                return
+
+            timer_stop_event.set()
+            if timer_thread:
+                timer_thread.join(0.1)
+
+            timer_running = False
+            start_btn.configure(state="normal")
+            stop_btn.configure(state="disabled")
+            hours_entry.configure(state="normal")
+            minutes_entry.configure(state="normal")
+            seconds_entry.configure(state="normal")
+
+        def reset_timer(auto_reset=False):
+            nonlocal timer_seconds, initial_seconds
+            stop_timer()
+
+            # Only calculate and record time if not an auto-reset (auto-reset already recorded)
+            if not auto_reset:
+                # Calculate time spent before reset
+                time_spent = initial_seconds - timer_seconds
+                record_timer_session(initial_seconds, timer_seconds)
+
+            # Reset timer display
+            try:
+                hrs = int(hours_entry.get() or "0")
+                mins = int(minutes_entry.get() or "0")
+                secs = int(seconds_entry.get() or "0")
+                timer_seconds = hrs * 3600 + mins * 60 + secs
+                update_timer_display()
+            except ValueError:
+                timer_seconds = 0
+                update_timer_display()
+
+            # Reset progress bar
+            progress_bar.set(0)
+            reset_btn.configure(state="disabled")
+
+        # Timer buttons
+        start_btn = ctk.CTkButton(timer_controls, text="Start", command=start_timer,
+                                  fg_color=TEXT_COLOR, hover_color=CALENDAR_SELECTED, width=70)
+        start_btn.pack(side="left", padx=(0, 5))
+
+        stop_btn = ctk.CTkButton(timer_controls, text="Stop", command=stop_timer,
+                                 state="disabled", fg_color="#666666", hover_color="#aa5555", width=70)
+        stop_btn.pack(side="left", padx=5)
+
+        reset_btn = ctk.CTkButton(timer_controls, text="Reset", command=reset_timer,
+                                  state="disabled", fg_color=HIGHLIGHT_COLOR, hover_color="#1a5f7a", width=70)
+        reset_btn.pack(side="left", padx=5)
 
     # Notification section
     notif_frame = ctk.CTkFrame(right_frame, fg_color=HIGHLIGHT_COLOR, corner_radius=10)
