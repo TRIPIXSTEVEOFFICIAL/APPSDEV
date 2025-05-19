@@ -1213,6 +1213,7 @@ def show_tracker():
         # Update display initially
         update_timer_display()
         update_timer_habit_selector()
+        update_habit_filter()
 
         # Update display when time inputs change
         def on_time_inputs_changed(*args):
